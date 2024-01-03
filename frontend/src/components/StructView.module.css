@@ -2,11 +2,11 @@
     /* Monospace */
     font-family: "Courier New", Courier, monospace;
     /* overflow: auto; */
-    flex: 1 1 1px;
+    flex: 1 1 0;
 
-    border-top: 1px solid #687b99;
+    border-top: 1px solid var(--border);
 
-    color: #aab7cd;
+    color: var(--text);
 
     display: flex;
     flex-direction: column;
@@ -15,6 +15,7 @@
 .StructView table {
     border-collapse: collapse;
     width: 100%;
+    text-align: right;
 }
 
 .StructView table tr:nth-child(even) {
@@ -23,16 +24,25 @@
 
 .StructView table tr:nth-child(1) {
     position: sticky;
+    top: 0px;
+    background-color: var(--primary);
+    
+    /* Border detaches from stickied row when using border-collapse. */
+    /* border-bottom: 1px solid var(--border); */ 
+    
+    /* Simulated border using box shadow. */
+    box-shadow: 0px 1px 0px 0px var(--border); 
+
+    /* Actual shadow */
+    /* box-shadow: 0px 5px 2px 0px rgba(0, 0, 0, 0.2); */
 }
 
 .StructView table th {
-    border-bottom: 1px solid #687b99;
-    text-align: right;
+    user-select: all;
 }
 
 .StructView table td {
     user-select: all;
-    text-align: right;
 }
 
 .StructViewAddress {
@@ -41,7 +51,7 @@
 
 .DataTypeInput {
     padding: 0 10px;
-    border-bottom: 1px solid #687b99;
+    border-bottom: 1px solid var(--border);
 }
 
 .TableOuter {

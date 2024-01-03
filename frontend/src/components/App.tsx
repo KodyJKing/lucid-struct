@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import './App.css'
 import * as Backend from "../../wailsjs/go/main/App"
 import { win32 } from '../../wailsjs/go/models'
 import { Resizable } from './Resizable'
@@ -70,7 +69,7 @@ function ProcessPicker( props: {
             }}
         >
             {processes.map( ( process ) => {
-                return <option value={process.pid}>{process.filename}</option>
+                return <option key={process.pid} value={process.pid}>{process.filename}</option>
             } )}
         </select>
     )
