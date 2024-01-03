@@ -55,7 +55,13 @@ func (a *App) ReadBytes(pid uint32, address string, size uint64) ([]byte, error)
 	return bytes, err
 }
 
-func (a *App) StartRecording(pid uint32, startAddress uint64, size uint64, capturePeriodMS uint32) error {
+func (a *App) StartRecording(pid uint32, startAddressString string, size uint64, capturePeriodMS uint32) error {
+	// Parse address as hex
+	startAddress, err := strconv.ParseUint(startAddressString, 16, 64)
+	if err != nil {
+		return err
+	}
+
 	fmt.Printf("Start recording at address %d, size %d\n", startAddress, size)
 
 	// Open the process

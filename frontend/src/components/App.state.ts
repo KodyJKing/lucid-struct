@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { win32 } from "../../wailsjs/go/models"
 import { useLoop } from "../hooks/useLoop"
 import * as Backend from "../../wailsjs/go/main/App"
@@ -9,16 +9,25 @@ export type AppState = ReturnType<typeof useAppState>
 
 export function useAppState() {
 
+
     const [ proc, setProc ] = useState<win32.ProcessInfo>()
     const [ size, setSize ] = useState<number>( 1024 )
-    const [ addressString, setAddressString ] = useState<string>( "00000000" )
+    const [ addressString, setAddressString ] = useState<string>( "0000000000000000" )
     const address = parseAddress( addressString )
-    const [ stream, _setStream ] = useState<MediaStream | null>( null )
     const [ data, setData ] = useState<DataView>( initialData )
+
+    const videoRef = useRef<HTMLVideoElement>( null )
+    const [ stream, _setStream ] = useState<MediaStream | null>( null )
+    const recordStartTime = useRef( 0 )
+    const mediaRecorder = useRef<MediaRecorder | null>( null )
+    const [ isRecording, setIsRecording ] = useState( false )
+    const chunks: Blob[] = useRef( [] ).current
+    const recordingUrl = useRef( "" )
 
     function setStream( stream: MediaStream | null ) {
         if ( stream ) {
-            const video = document.getElementById( "mainVideo" ) as HTMLVideoElement
+            const video = videoRef.current
+            if ( !video ) return
             video.srcObject = stream
             video.onloadedmetadata = () => {
                 video.play()
@@ -30,6 +39,38 @@ export function useAppState() {
         navigator.mediaDevices.getDisplayMedia( { video: true } ).then( ( stream ) => {
             setStream( stream )
         } )
+    }
+    function recordStream() {
+        if ( !stream ) return
+        let recorder = mediaRecorder.current = new MediaRecorder( stream )
+        setIsRecording( true )
+        recorder.onstart = () => {
+            chunks.length = 0
+            recordStartTime.current = Date.now()
+        }
+        recorder.ondataavailable = ( e ) => {
+            if ( e.data.size == 0 ) return
+            chunks.push( e.data )
+        }
+        recorder.onstop = () => {
+            const blob = new Blob( chunks, { type: "video/webm" } )
+            if ( recordingUrl.current ) URL.revokeObjectURL( recordingUrl.current )
+            const url = recordingUrl.current = URL.createObjectURL( blob )
+            const video = videoRef.current
+            if ( !video ) return
+            video.srcObject = null
+            video.src = url
+            video.onloadedmetadata = () => {
+                video.play()
+            }
+        }
+        recorder.start()
+    }
+    function stopRecordStream() {
+        if ( !mediaRecorder.current ) return
+        mediaRecorder.current.stop()
+        mediaRecorder.current = null
+        setIsRecording( false )
     }
 
     // Poll memory
@@ -43,14 +84,20 @@ export function useAppState() {
     return {
         proc,
         setProc,
-        size,
-        setSize,
         addressString,
         setAddressString,
         address,
+        size,
+        setSize,
+        data,
+
+        videoRef,
         stream,
         pickScreen,
-        data,
+        recordStream,
+        stopRecordStream,
+        isRecording,
+        recordingUrl,
     }
 
 }

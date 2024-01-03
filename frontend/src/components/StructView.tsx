@@ -3,22 +3,44 @@ import { useRef, useState } from "react"
 import classes from "./StructView.module.css"
 import useSize from "../hooks/useSize"
 
-const DataTypes = {
-    byte: {
-        size: 1,
-        cellWidth: 24,
-        format: ( data: DataView, offset ) => data.getUint8( offset ).toString( 16 ).padStart( 2, "0" ).toUpperCase(),
-    },
-    float: {
-        size: 4,
-        cellWidth: 100,
-        format: ( data: DataView, offset ) => {
-            const val = data.getFloat32( offset, true )
-            const fixed = val.toFixed( 2 )
+function integralType( size: number, getter: string, signed = false ) {
+    const getterFunc = DataView.prototype[ getter ]
+    return {
+        size,
+        cellWidth: ( hex: boolean ) => {
+            let cellWidth = hex ? size * 22 + 4 : size * 33 + 4
+            if ( signed )
+                cellWidth += 20
+            return cellWidth
+        },
+        format: ( data: DataView, offset: number, hex: boolean ) => getterFunc.call( data, offset, true ).toString( hex ? 16 : 10 ).padStart( size * 2, "0" ).toUpperCase(),
+    }
+}
+function floatType( size: number, getter: string ) {
+    const getterFunc = DataView.prototype[ getter ]
+    return {
+        size,
+        cellWidth: ( _hex: boolean ) => size * 20 + 4,
+        format: ( data: DataView, offset: number, _hex: boolean ) => {
+            const val = getterFunc.call( data, offset, true )
+            const fixed = val.toFixed( size / 2 )
             const exp = val.toExponential( 1 )
             return exp.length < fixed.length ? exp : fixed
         },
     }
+}
+
+const DataTypes = {
+    uint8: integralType( 1, "getUint8" ),
+    uint16: integralType( 2, "getUint16" ),
+    uint32: integralType( 4, "getUint32" ),
+    uint64: integralType( 8, "getBigUint64" ),
+    int8: integralType( 1, "getInt8", true ),
+    int16: integralType( 2, "getInt16", true ),
+    int32: integralType( 4, "getInt32", true ),
+    int64: integralType( 8, "getBigInt64", true ),
+    float32: floatType( 4, "getFloat32" ),
+    float64: floatType( 8, "getFloat64" ),
 } as const
 type DataType = keyof typeof DataTypes
 
@@ -29,7 +51,8 @@ export function StructView( props: {
     bytesPerRow: number,
     byteCount: number,
 } ) {
-    const [ dataType, setDataType ] = useState<DataType>( "byte" )
+    const [ dataType, setDataType ] = useState<DataType>( "uint8" )
+    const [ hex, setHex ] = useState( true )
 
     const dataTypeInfo = DataTypes[ dataType ]
     const cellCount = props.byteCount / dataTypeInfo.size
@@ -40,7 +63,8 @@ export function StructView( props: {
     const addressSize = useSize( addressRef )
 
     const contentWidth = tableSize[ 0 ] - addressSize[ 0 ]
-    const cellsPerRow = Math.max( 1, Math.floor( contentWidth / dataTypeInfo.cellWidth ) )
+    const cellWidth = dataTypeInfo.cellWidth( hex )
+    const cellsPerRow = Math.max( 1, Math.floor( contentWidth / cellWidth ) )
     const rowCount = cellCount / cellsPerRow
 
     const tableHeaders: any[] = []
@@ -57,8 +81,8 @@ export function StructView( props: {
             const cell = c + r * cellsPerRow
             const offset = cell * dataTypeInfo.size
             const outOfBounds = offset + dataTypeInfo.size >= props.data.byteLength
-            const text = outOfBounds ? "??" : dataTypeInfo.format( props.data, offset )
-            row.push( <td style={{ width: `${ dataTypeInfo.cellWidth }px` }}>{text}</td> )
+            const text = outOfBounds ? "??" : dataTypeInfo.format( props.data, offset, hex )
+            row.push( <td style={{ width: `${ cellWidth }px` }}>{text}</td> )
         }
         rows.push( <tr>{row}</tr> )
     }
@@ -78,16 +102,20 @@ export function StructView( props: {
     return (
         <div ref={tableRef} className={classes.StructView}>
             <div>
-                <DataTypeInput dataType={dataType} setDataType={setDataType} />
+                <DataTypeInput dataType={dataType} setDataType={setDataType} hex={hex} setHex={setHex} />
             </div>
-            <table
-                onPointerUp={getSelectedBytes}
-            >
-                <tbody>
-                    {tableHeaders}
-                    {rows}
-                </tbody>
-            </table>
+            <div className={classes.TableOuter}>
+                <table
+                    onPointerUp={getSelectedBytes}
+                >
+                    <tbody>
+                        <tr>
+                            {tableHeaders}
+                        </tr>
+                        {rows}
+                    </tbody>
+                </table>
+            </div>
         </div>
     )
 }
@@ -95,15 +123,30 @@ export function StructView( props: {
 function DataTypeInput( props: {
     dataType: DataType,
     setDataType: ( dataType: DataType ) => void,
+    hex: boolean,
+    setHex: ( hex: boolean ) => void,
 } ) {
     return (
-        <select value={props.dataType} onChange={( event ) => {
-            props.setDataType( event.target.value as DataType )
-        }}>
-            {Object.keys( DataTypes ).map( ( dataType ) => {
-                return <option value={dataType}>{dataType}</option>
-            } )}
-        </select>
+        <span className={`flex-row ${ classes.DataTypeInput }`} style={{ gap: 8 }}>
+            <div className="flex-row">
+                <label htmlFor="show-as-hex">
+                    Hex
+                </label>
+                <input id="show-as-hex" type="checkbox"
+                    checked={props.hex}
+                    onChange={( event ) => {
+                        props.setHex( event.target.checked )
+                    }}
+                />
+            </div>
+            <select value={props.dataType} onChange={( event ) => {
+                props.setDataType( event.target.value as DataType )
+            }}>
+                {Object.keys( DataTypes ).map( ( dataType ) => {
+                    return <option value={dataType}>{dataType}</option>
+                } )}
+            </select>
+        </span>
     )
 }
 

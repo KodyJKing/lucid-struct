@@ -7,6 +7,7 @@ import { StructView } from './StructView'
 import { useAppState } from './App.state'
 
 export default function App() {
+    const state = useAppState()
     const {
         proc, setProc,
         size, setSize,
@@ -14,7 +15,7 @@ export default function App() {
         address,
         data,
         pickScreen,
-    } = useAppState()
+    } = state
 
     return (
         <div id="App">
@@ -27,10 +28,12 @@ export default function App() {
                 <input type="number" value={size} onChange={( event ) => {
                     setSize( event.target.valueAsNumber )
                 }} />
+                {!state.isRecording && <button onClick={state.recordStream}>record</button>}
+                {state.isRecording && <button onClick={state.stopRecordStream}>stop</button>}
             </div>
 
             <Resizable bottom>
-                <video id="mainVideo" width="1024" height="768" controls></video>
+                <video id="mainVideo" ref={state.videoRef} width="1024" height="768" controls></video>
             </Resizable>
 
             <StructView

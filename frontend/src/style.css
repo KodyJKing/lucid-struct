@@ -57,6 +57,10 @@ tr {
     border-bottom: 1px solidrgb(156, 37, 37)f;
 }
 
+input {
+    font-family: 'Courier New', Courier, monospace;
+}
+
 input, select, button {
     border: none;
 }
