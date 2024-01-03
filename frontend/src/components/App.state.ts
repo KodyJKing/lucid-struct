@@ -3,7 +3,7 @@ import { win32 } from "../../wailsjs/go/models"
 import { useLoop } from "../hooks/useLoop"
 import * as Backend from "../../wailsjs/go/main/App"
 
-const initialData = new DataView( new ArrayBuffer( 1024 ) )
+const emptyData = new DataView( new ArrayBuffer( 0 ) )
 
 export type AppState = ReturnType<typeof useAppState>
 
@@ -14,7 +14,7 @@ export function useAppState() {
     const [ size, setSize ] = useState<number>( 1024 )
     const [ addressString, setAddressString ] = useState<string>( "0000000000000000" )
     const address = parseAddress( addressString )
-    const [ data, setData ] = useState<DataView>( initialData )
+    const [ data, setData ] = useState<DataView>( emptyData )
 
     const videoRef = useRef<HTMLVideoElement>( null )
     const [ stream, _setStream ] = useState<MediaStream | null>( null )
@@ -75,9 +75,16 @@ export function useAppState() {
 
     // Poll memory
     useLoop( 100, () => {
-        if ( !proc || !proc.pid ) return
-        Backend.ReadBytes( proc.pid, addressString, size ).then( ( dataBase64 ) => {
+        if ( !proc || !proc.pid ) {
+            if ( data !== emptyData )
+                setData( emptyData )
+            return
+        }
+        Backend.ReadBytes( proc.pid, addressString, size ).then( dataBase64 =>
             setData( base64ToDataView( dataBase64 as unknown as string ) )
+        ).catch( () => {
+            if ( data !== emptyData )
+                setData( emptyData )
         } )
     } )
 
