@@ -1,0 +1,62 @@
+:root {
+    height: 100vh;
+    width: 100vw;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    box-sizing: border-box;
+    color-scheme: dark;
+
+    background-color: var(--primary);
+    color: white;
+}
+
+#root {
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    height: 100vh;
+    width: 100vw;
+    color: white;
+    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+    "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
+}
+
+@font-face {
+    font-family: "Nunito";
+    font-style: normal;
+    font-weight: 400;
+    src: local(""),
+    url("assets/fonts/nunito-v16-latin-regular.woff2") format("woff2");
+}
+
+#App {
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    /* align-items: center; */
+}
+
+#mainVideo {
+    height: 100%;
+    width: 100%;
+    margin: auto;
+    z-index: -1;
+}
+
+tr {
+    border-bottom: 1px solidrgb(156, 37, 37)f;
+}
+
+input, select, button {
+    border: none;
+}

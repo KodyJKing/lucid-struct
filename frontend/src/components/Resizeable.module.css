@@ -1,0 +1,9 @@
+.ResizeHandle {
+    transition: border-color 0.15s ease-in-out;
+    border: solid 0px rgba(255,255,255,0);
+    --border-color: #425fff;
+}
+
+.ResizeHandle:hover {
+    border-color: var(--border-color);
+}

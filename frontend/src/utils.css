@@ -1,0 +1,19 @@
+:root {
+    --primary: #1b2636;
+    --gray-0: #292929;
+}
+
+.bg-primary { background-color: var(--primary); }
+.bg-gray-0 { background-color: var(--gray-0); }
+
+.flex {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.flex-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}

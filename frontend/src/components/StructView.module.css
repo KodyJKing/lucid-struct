@@ -1,0 +1,32 @@
+.StructView {
+    /* Monospace */
+    font-family: "Courier New", Courier, monospace;
+    overflow: auto;
+    flex: 1 1 1px;
+
+    border-top: 1px solid #687b99;
+
+    color: #aab7cd;
+}
+
+.StructView table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.StructView table tr:nth-child(odd) {
+    background-color: #121c2c;
+}
+
+.StructView table th {
+    border-bottom: 1px solid #687b99;
+    text-align: left;
+}
+
+.StructView table td {
+    user-select: all;
+}
+
+.StructViewAddress {
+    width: 120px;
+}
