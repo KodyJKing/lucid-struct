@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import * as Backend from "../../wailsjs/go/main/App"
 import { win32 } from '../../wailsjs/go/models'
 import { Resizable } from './Resizable'
-import { StructView } from './StructView'
+import { TableView } from './TableView'
 import { useAppState } from './App.state'
 
 export default function App() {
@@ -35,7 +35,7 @@ export default function App() {
                 <video id="mainVideo" ref={state.videoRef} width="1024" height="768" controls></video>
             </Resizable>
 
-            <StructView
+            <TableView
                 baseAddress={address}
                 data={data}
                 bytesPerRow={32}

@@ -1,0 +1,77 @@
+.TableView {
+    flex: 1 1 0;
+
+    border-top: 1px solid var(--border);
+
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.TableView table {
+    font-family: "Courier New", Courier, monospace;
+    border-collapse: collapse;
+    width: 100%;
+    text-align: right;
+    color: var(--text);
+    background-color: var(--primary);
+    outline: none;
+}
+
+.TableView table tr:nth-child(even) {
+    background-color: #121c2c;
+}
+
+.TableView table tr:nth-child(1) {
+    position: sticky;
+    top: 0px;
+    background-color: var(--primary);
+    
+    /*   Border detaches from stickied row when using border-collapse. */
+    /* border-bottom: 1px solid var(--border); */ 
+    
+    /*    Simulated border using box shadow. */
+    box-shadow: 0px 1px 0px 0px var(--border); 
+
+    /*    Actual shadow */
+    /* box-shadow: 0px 5px 2px 0px rgba(0, 0, 0, 0.2); */
+}
+
+
+.TableView th:nth-child(1) {
+    border-right: 1px solid var(--border);
+}
+.TableView td:nth-child(1) {
+    border-right: 1px solid var(--border);
+    padding-right: 2px;
+    font-weight: bold;
+    user-select: none;
+}
+.TableView td:nth-child(1):hover {
+    user-select: all;
+}
+
+.TableView table th {
+    user-select: all;
+}
+
+.TableViewAddress {
+    width: 90px;
+}
+
+.TableHeader {
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: space-between;
+}
+
+.TableOuter {
+    overflow: auto;
+    flex: 1 1 1px;
+}
+
+.TableViewSelected {
+    background-color: var(--accent);
+}

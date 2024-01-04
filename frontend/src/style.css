@@ -64,3 +64,7 @@ input {
 input, select, button {
     border: none;
 }
+
+*::selection {
+    background-color: var(--accent);
+}
