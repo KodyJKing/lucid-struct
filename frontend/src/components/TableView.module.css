@@ -74,5 +74,15 @@
 }
 
 .TableViewSelected {
-    background-color: var(--accent);
+    /* background-color: var(--accent); */
+    /* Don't use background color to avoid animations */
+    background-image: linear-gradient(to right, var(--accent) 0%, var(--accent) 100%);
+}
+
+.TableViewChanged {
+    background-color: var(--red-2);
+}
+
+.TableViewDefault {
+    transition: background-color 1s ease-in-out;
 }

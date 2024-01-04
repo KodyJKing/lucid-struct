@@ -11,6 +11,9 @@
     --primary-3: #323c4a;
     --primary-4: #49515e;
 
+    /* --red-2: #d24848; */
+    --red-2: rgb(173, 79, 79);
+
     --font-mono: 'Courier New', Courier, monospace;
 
     --size-10: 27px;

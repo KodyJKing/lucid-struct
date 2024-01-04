@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import classes from "./TableView.module.css"
 import useSize from "../hooks/useSize"
@@ -60,6 +60,19 @@ export function TableView( props: {
         setSelection( { start, end } )
     }
 
+    const lastData = useRef( props.data )
+    useEffect( () => { lastData.current = props.data }, [ props.data ] )
+    function changedAt( offset: number ) {
+        for ( let i = 0; i < dataTypeInfo.size; i++ ) {
+            const j = offset + i
+            if ( j >= props.data.byteLength || j >= lastData.current.byteLength )
+                continue
+            if ( props.data.getUint8( j ) !== lastData.current.getUint8( j ) )
+                return true
+        }
+        return false
+    }
+
     const headers: any[] = []
     const addressOrOffset = displayOptions.showAddress ? "Address" : "Offset"
     headers.push( <th key="address" ref={addressRef} className={classes.TableViewAddress}>{addressOrOffset}</th> )
@@ -73,13 +86,22 @@ export function TableView( props: {
         const addressOrOffset = displayOptions.showAddress ? props.baseAddress + BigInt( r * bytesPerRow ) : r * bytesPerRow
         row.push( <td key="address">{formatHex( addressOrOffset )}</td> )
         for ( let c = 0; c < cellsPerRow; c++ ) {
+            const changed = changedAt( getOffset( r, c ) )
             const selected = isSelected( r, c )
+            let classNames: string[] = []
+            if ( selected )
+                classNames.push( classes.TableViewSelected )
+            if ( changed )
+                classNames.push( classes.TableViewChanged )
+            if ( !selected && !changed )
+                classNames.push( classes.TableViewDefault )
+
             const cell = c + r * cellsPerRow
             const offset = cell * dataTypeInfo.size
             const outOfBounds = offset + dataTypeInfo.size > props.data.byteLength
             const text = outOfBounds ? "??" : dataTypeInfo.format( props.data, offset, displayOptions.hex )
-            const className = selected ? classes.TableViewSelected : undefined
-            row.push( <td key={cell} className={className}>{text}</td> )
+
+            row.push( <td key={cell} className={classNames.join( " " )}>{text}</td> )
         }
         rows.push( <tr key={r}>{row}</tr> )
     }
@@ -108,6 +130,7 @@ export function TableView( props: {
             return
         setSelectionFromTableRange( getSelectionRange() )
         setSelectAnchored( true )
+        window.getSelection()?.removeAllRanges()
     }
     function onKeyUp( e: React.KeyboardEvent<HTMLTableElement> ) {
         if ( e.key === "Escape" ) {

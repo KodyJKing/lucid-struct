@@ -47,7 +47,7 @@ function floatType( size: number, getter: string ) {
         cellWidth: ( _hex: boolean ) => 84,
         format: ( data: DataView, offset: number, _hex: boolean ) => {
             const val = getterFunc.call( data, offset, true )
-            const fixed = val.toFixed( 2 )
+            const fixed = val.toFixed( 4 )
             const exp = val.toExponential( 1 )
             return exp.length < fixed.length ? exp : fixed
         },

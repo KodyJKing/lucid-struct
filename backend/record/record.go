@@ -28,13 +28,17 @@ func NewRecording(startAddress uint64, size uint64) *Recording {
 }
 
 func (recording *Recording) CaptureFrame(process windows.Handle) error {
+	startTime := time.Now()
 	data, err := win32.ReadBytes(process, recording.startAddress, recording.size)
+	endTime := time.Now()
+	timeNano := (startTime.UnixNano() + endTime.UnixNano()) / 2
+	timeMilli := timeNano / 1000000
+	
 	if err != nil {
 		return err
 	}
 	recording.frames = append(recording.frames, data)
-	time := time.Now()
-	recording.timestamps = append(recording.timestamps, time.UnixMilli())
+	recording.timestamps = append(recording.timestamps, timeMilli)
 
 	previewSize := 10
 	if (recording.size < 10) {

@@ -45,13 +45,13 @@ export function useAppState() {
         setIsRecording( true )
         recorder.onstart = () => {
             chunks.length = 0
-            recordStartTime.current = Date.now()
         }
         recorder.ondataavailable = ( e ) => {
             if ( e.data.size == 0 ) return
             chunks.push( e.data )
         }
         recorder.onstop = playRecording
+        recordStartTime.current = Date.now()
         recorder.start()
 
         if ( !proc || !proc.pid ) return
