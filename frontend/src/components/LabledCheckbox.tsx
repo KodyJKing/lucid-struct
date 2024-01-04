@@ -1,16 +1,23 @@
 import classes from "./LabledCheckbox.module.css"
 
-export function LabledCheckBox( props: {
+type LabledCheckBoxProps = {
     label: string,
     checked: boolean,
     onChange: ( checked: boolean ) => void,
-} ) {
+    disabled?: boolean,
+} & Omit<React.HTMLProps<HTMLSpanElement>, "onChange">
+
+export function LabledCheckBox( props: LabledCheckBoxProps ) {
+    const { label, checked, onChange, disabled, ...spanProps } = props
     return (
-        <span className={classes.LabledCheckbox}>
-            <label>{props.label}</label>
+        <span className={classes.LabledCheckbox} {...spanProps}
+            onClick={() => onChange( !checked )}
+        >
+            <label>{label}</label>
             <input type="checkbox"
-                checked={props.checked}
-                onChange={( event ) => props.onChange( event.target.checked )}
+                checked={checked}
+                disabled={disabled}
+                onChange={( event ) => onChange( event.target.checked )}
             />
         </span>
     )

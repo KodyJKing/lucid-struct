@@ -39,7 +39,8 @@ export function useAppState() {
         } )
     }
     function recordStream() {
-        if ( !stream ) return
+        if ( !stream )
+            return
         let recorder = mediaRecorder.current = new MediaRecorder( stream )
         setIsRecording( true )
         recorder.onstart = () => {
@@ -50,25 +51,15 @@ export function useAppState() {
             if ( e.data.size == 0 ) return
             chunks.push( e.data )
         }
-        recorder.onstop = () => {
-            const blob = new Blob( chunks, { type: "video/webm" } )
-            if ( recordingUrl.current ) URL.revokeObjectURL( recordingUrl.current )
-            const url = recordingUrl.current = URL.createObjectURL( blob )
-            const video = videoRef.current
-            if ( !video ) return
-            video.srcObject = null
-            video.src = url
-            video.onloadedmetadata = () => {
-                video.play()
-            }
-        }
+        recorder.onstop = playRecording
         recorder.start()
 
         if ( !proc || !proc.pid ) return
         Backend.StartRecording( proc.pid, addressString, size, 100 )
     }
     function stopRecordStream() {
-        if ( !mediaRecorder.current ) return
+        if ( !mediaRecorder.current )
+            return
         mediaRecorder.current.stop()
         mediaRecorder.current = null
         setIsRecording( false )
@@ -76,8 +67,34 @@ export function useAppState() {
         Backend.StopRecording()
     }
 
-    // Poll memory
+    function playRecording() {
+        const blob = new Blob( chunks, { type: "video/webm" } )
+        if ( recordingUrl.current ) URL.revokeObjectURL( recordingUrl.current )
+        const url = recordingUrl.current = URL.createObjectURL( blob )
+        const video = videoRef.current
+        if ( !video )
+            return
+        video.srcObject = null
+        video.src = url
+        video.onloadedmetadata = () => video.play()
+
+        video.ontimeupdate = () => {
+            const time = Math.floor( video.currentTime * 1000 + recordStartTime.current )
+            Backend.GetRecordingFrame( time ).then( ( dataBase64 ) => {
+                setData( base64ToDataView( dataBase64 as unknown as string ) )
+            } ).catch( err => {
+                if ( data !== emptyData )
+                    setData( emptyData )
+            } )
+        }
+    }
+
+    // Poll memory if we're not recording or playing back.
     useLoop( 100, () => {
+        const video = videoRef.current
+        const isPlaying = video && !!video.src // This check might not be robust.
+        if ( isPlaying )
+            return
         if ( !proc || !proc.pid || isRecording ) {
             if ( data !== emptyData )
                 setData( emptyData )

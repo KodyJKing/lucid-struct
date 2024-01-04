@@ -20,6 +20,8 @@ func main() {
 		Title:  "Lucid Struct",
 		Width:  1024,
 		Height: 768,
+		MinWidth: 720,
+		MinHeight: 480,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},

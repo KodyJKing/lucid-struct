@@ -9,7 +9,7 @@
 }
 
 .TableView table {
-    font-family: "Courier New", Courier, monospace;
+    font-family: var(--font-mono);
     border-collapse: collapse;
     width: 100%;
     text-align: right;
@@ -19,7 +19,7 @@
 }
 
 .TableView table tr:nth-child(even) {
-    background-color: #121c2c;
+    background-color: var(--primary-1);
 }
 
 .TableView table tr:nth-child(1) {

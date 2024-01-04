@@ -6,10 +6,12 @@
     
     /* https://maketintsandshades.com/#1b2636 */
     --primary-0: #080b10;
-    --primary-1: #131b26;
+    --primary-1: #121c2c;
     --primary-2: #1b2636;
     --primary-3: #323c4a;
     --primary-4: #49515e;
+
+    --font-mono: 'Courier New', Courier, monospace;
 
     --size-10: 27px;
 }
@@ -39,4 +41,8 @@
 
 .flex-stretch-self {
     align-self: stretch;
+}
+
+.mono {
+    font-family: var(--font-mono);
 }

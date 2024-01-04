@@ -4,6 +4,7 @@
     align-items: stretch;
     border-bottom: 1px solid var(--border);
     height: var(--size-10);
+    gap: 1px;
 }
 
 .TargetInputs {
