@@ -2,11 +2,19 @@
     --accent: #4B8A66;
     --border: #687b99;
     --text: #aab7cd;
-    --primary: #1b2636;
     --gray-0: #292929;
+    
+    /* https://maketintsandshades.com/#1b2636 */
+    --primary-0: #080b10;
+    --primary-1: #131b26;
+    --primary-2: #1b2636;
+    --primary-3: #323c4a;
+    --primary-4: #49515e;
+
+    --size-10: 27px;
 }
 
-.bg-primary { background-color: var(--primary); }
+.bg-primary { background-color: var(--primary-2); }
 .bg-gray-0 { background-color: var(--gray-0); }
 
 .flex {

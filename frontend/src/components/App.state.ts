@@ -8,11 +8,9 @@ const emptyData = new DataView( new ArrayBuffer( 0 ) )
 export type AppState = ReturnType<typeof useAppState>
 
 export function useAppState() {
-
-
     const [ proc, setProc ] = useState<win32.ProcessInfo>()
     const [ size, setSize ] = useState<number>( 1024 )
-    const [ addressString, setAddressString ] = useState<string>( "0000000000000000" )
+    const [ addressString, setAddressString ] = useState<string>( "" )
     const address = parseAddress( addressString )
     const [ data, setData ] = useState<DataView>( emptyData )
 
@@ -65,17 +63,22 @@ export function useAppState() {
             }
         }
         recorder.start()
+
+        if ( !proc || !proc.pid ) return
+        Backend.StartRecording( proc.pid, addressString, size, 100 )
     }
     function stopRecordStream() {
         if ( !mediaRecorder.current ) return
         mediaRecorder.current.stop()
         mediaRecorder.current = null
         setIsRecording( false )
+
+        Backend.StopRecording()
     }
 
     // Poll memory
     useLoop( 100, () => {
-        if ( !proc || !proc.pid ) {
+        if ( !proc || !proc.pid || isRecording ) {
             if ( data !== emptyData )
                 setData( emptyData )
             return

@@ -7,7 +7,7 @@
     box-sizing: border-box;
     color-scheme: dark;
 
-    background-color: var(--primary);
+    background-color: var(--primary-2);
     color: white;
 }
 
@@ -60,9 +60,26 @@ tr {
 input {
     font-family: 'Courier New', Courier, monospace;
 }
-
+input {
+    width: 10em;
+    background-color: var(--primary-3);
+} 
+input[type=checkbox] {
+    width: 1em;
+}
+select {
+    width: fit-content;
+    background-color: var(--primary-3);
+}
 input, select, button {
     border: none;
+}
+button {
+    cursor: pointer;
+    font-weight: 400;
+    font-size: small;
+    text-transform:capitalize;
+    background-color: var(--primary-4);
 }
 
 *::selection {

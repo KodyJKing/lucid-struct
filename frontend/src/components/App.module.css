@@ -1,0 +1,13 @@
+.Menu {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    border-bottom: 1px solid var(--border);
+    height: var(--size-10);
+}
+
+.TargetInputs {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+}

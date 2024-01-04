@@ -5,6 +5,8 @@ import { Resizable } from './Resizable'
 import { TableView } from './TableView'
 import { useAppState } from './App.state'
 
+import classes from "./App.module.css"
+
 export default function App() {
     const state = useAppState()
     const {
@@ -14,21 +16,26 @@ export default function App() {
         address,
         data,
         pickScreen,
+        isRecording
     } = state
 
     return (
         <div id="App">
-            <div className='flex-row bg-gray-0' style={{ gap: "2px" }}>
-                <button onClick={pickScreen}>pick window</button>
+            <div className={classes.Menu}>
+                <button title="pick window or screen to record" onClick={pickScreen}>pick window</button>
                 <ProcessPicker {...{ proc, setProc }} />
-                <input type="text" value={addressString} onChange={( event ) => {
-                    setAddressString( event.target.value )
-                }} />
-                <input type="number" value={size} onChange={( event ) => {
-                    setSize( event.target.valueAsNumber )
-                }} />
-                {!state.isRecording && <button onClick={state.recordStream}>record</button>}
-                {state.isRecording && <button onClick={state.stopRecordStream}>stop</button>}
+                <input type="text" title="memory address to record from" placeholder="address"
+                    value={addressString} onChange={( event ) => {
+                        setAddressString( event.target.value )
+                    }}
+                />
+                <input type="number" title="size of memory region to record" placeholder="size"
+                    value={size} onChange={( event ) => {
+                        setSize( event.target.valueAsNumber )
+                    }}
+                />
+                {!state.isRecording && <button title="begin recording" onClick={state.recordStream}>record</button>}
+                {state.isRecording && <button title="stop recording" onClick={state.stopRecordStream}>stop</button>}
             </div>
 
             <Resizable bottom>
@@ -59,7 +66,7 @@ function ProcessPicker( props: {
     useEffect( updateProcesses, [] )
 
     return (
-        <select name="Process" onFocus={updateProcesses}
+        <select title="process" onFocus={updateProcesses}
             onChange={( event ) => {
                 const pid = parseInt( event.target.value )
                 const process = processes.find( ( process ) => {

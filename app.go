@@ -62,6 +62,10 @@ func (a *App) StartRecording(pid uint32, startAddressString string, size uint64,
 		return err
 	}
 
+	if (capturePeriodMS < 16) {
+		return fmt.Errorf("Capture rate too high. Period must be at least 16ms")
+	}
+
 	fmt.Printf("Start recording at address %d, size %d\n", startAddress, size)
 
 	// Open the process
@@ -95,11 +99,15 @@ func (a *App) StartRecording(pid uint32, startAddressString string, size uint64,
 	return nil
 }
 
-func (a *App) StopRecord() {
+func (a *App) StopRecording() {
 	fmt.Printf("Stop recording\n")
 
 	// Stop the recording goroutine
 	a.stopRecording <- true
+}
+
+func (a *App) GetRecordingFrame(time int64) ([]byte, error) {
+	return a.currentRecording.GetFrame(time)
 }
 
 func (a *App) EnumAppProcessInfo() (infos []win32.ProcessInfo) {

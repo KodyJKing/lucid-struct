@@ -6,6 +6,10 @@ export function EnumAppProcessInfo() {
   return window['go']['main']['App']['EnumAppProcessInfo']();
 }
 
+export function GetRecordingFrame(arg1) {
+  return window['go']['main']['App']['GetRecordingFrame'](arg1);
+}
+
 export function ReadBytes(arg1, arg2, arg3) {
   return window['go']['main']['App']['ReadBytes'](arg1, arg2, arg3);
 }
@@ -14,6 +18,6 @@ export function StartRecording(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['StartRecording'](arg1, arg2, arg3, arg4);
 }
 
-export function StopRecord() {
-  return window['go']['main']['App']['StopRecord']();
+export function StopRecording() {
+  return window['go']['main']['App']['StopRecording']();
 }
