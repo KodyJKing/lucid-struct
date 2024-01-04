@@ -59,6 +59,19 @@ export function TableView( props: {
         const end = getOffset( range.end.row, range.end.column ) + dataTypeInfo.size - 1
         setSelection( { start, end } )
     }
+    function selectionText() {
+        if ( !selection )
+            return ""
+        let result: string[] = []
+        const dataSize = dataTypeInfo.size
+        for ( let i = selection.start; i <= selection.end; i += dataSize ) {
+            if ( i + dataSize > props.data.byteLength )
+                result.push( "??" )
+            else
+                result.push( dataTypeInfo.format( props.data, i, displayOptions.hex ) )
+        }
+        return result.join( " " )
+    }
 
     const lastData = useRef( props.data )
     useEffect( () => { lastData.current = props.data }, [ props.data ] )
@@ -130,7 +143,7 @@ export function TableView( props: {
             return
         setSelectionFromTableRange( getSelectionRange() )
         setSelectAnchored( true )
-        window.getSelection()?.removeAllRanges()
+        // window.getSelection()?.removeAllRanges()
     }
     function onKeyUp( e: React.KeyboardEvent<HTMLTableElement> ) {
         if ( e.key === "Escape" ) {
@@ -142,6 +155,13 @@ export function TableView( props: {
     function onPointerLeave( e: React.PointerEvent<HTMLTableElement> ) {
         if ( !selectAnchored )
             setSelection( undefined )
+    }
+    function onCopy( e: React.ClipboardEvent<HTMLTableElement> ) {
+        if ( !selection )
+            return
+        console.log( "!" )
+        e.clipboardData.setData( "text/plain", selectionText() )
+        e.preventDefault()
     }
 
     return (
@@ -174,6 +194,7 @@ export function TableView( props: {
                     onPointerMove={onPointerMove}
                     onPointerUp={onPointerUp}
                     onKeyUp={onKeyUp}
+                    onCopy={onCopy}
                     tabIndex={0}
                 >
                     <tbody>
