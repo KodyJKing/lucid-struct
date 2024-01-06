@@ -6,6 +6,7 @@ import { TableView } from './TableView'
 import { useAppState } from './App.state'
 
 import classes from "./App.module.css"
+import { CanvasTable } from './CanvasTable'
 
 export default function App() {
     const state = useAppState()
@@ -39,14 +40,14 @@ export default function App() {
             </div>
 
             <Resizable bottom>
-                <video id="mainVideo" ref={state.videoRef} width="1024" height="768" controls></video>
+                <video id="mainVideo" ref={state.videoRef} width="1024" height="768" controls />
             </Resizable>
 
-            <TableView
+            <CanvasTable
                 baseAddress={address}
                 data={data}
-                bytesPerRow={32}
-                byteCount={size}
+                dataType="uint8"
+                hex={true}
             />
 
         </div>
@@ -66,7 +67,7 @@ function ProcessPicker( props: {
     useEffect( updateProcesses, [] )
 
     return (
-        <select title="process" onFocus={updateProcesses}
+        <select title="process to record memory from" onFocus={updateProcesses}
             onChange={( event ) => {
                 const pid = parseInt( event.target.value )
                 const process = processes.find( ( process ) => {

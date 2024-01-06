@@ -12,7 +12,7 @@ export function useAppState() {
     const [ size, setSize ] = useState<number>( 1024 )
     const [ addressString, setAddressString ] = useState<string>( "" )
     const address = parseAddress( addressString )
-    const [ data, setData ] = useState<DataView>( emptyData )
+    const [ data, setData ] = useState<DataView>( emptyData ) // Todo: Double buffer this. Don't construct a new array buffer every time.
 
     const videoRef = useRef<HTMLVideoElement>( null )
     const [ stream, _setStream ] = useState<MediaStream | null>( null )
@@ -78,6 +78,10 @@ export function useAppState() {
         video.src = url
         video.onloadedmetadata = () => video.play()
 
+        syncDataWithVideo( video )
+    }
+
+    function syncDataWithVideo( video: HTMLVideoElement ) {
         video.ontimeupdate = () => {
             const time = Math.floor( video.currentTime * 1000 + recordStartTime.current )
             Backend.GetRecordingFrame( time ).then( ( dataBase64 ) => {

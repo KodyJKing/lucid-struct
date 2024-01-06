@@ -40,11 +40,11 @@ func (recording *Recording) CaptureFrame(process windows.Handle) error {
 	recording.frames = append(recording.frames, data)
 	recording.timestamps = append(recording.timestamps, timeMilli)
 
-	previewSize := 10
-	if (recording.size < 10) {
-		previewSize = int(recording.size)
-	}
-	fmt.Printf("Captured %d bytes at %d: %X...\n", recording.size, recording.startAddress, data[:previewSize])
+	// previewSize := 10
+	// if (recording.size < 10) {
+	// 	previewSize = int(recording.size)
+	// }
+	// fmt.Printf("Captured %d bytes at %d: %X...\n", recording.size, recording.startAddress, data[:previewSize])
 
 	return nil
 }

@@ -15,7 +15,6 @@ type SelectionRange = {
 export function TableView( props: {
     baseAddress: bigint,
     data: DataView,
-    bytesPerRow: number,
     byteCount: number,
 } ) {
     const [ displayOptions, setDisplayOptions ] = useState<DisplayOptions>( {
@@ -159,7 +158,6 @@ export function TableView( props: {
     function onCopy( e: React.ClipboardEvent<HTMLTableElement> ) {
         if ( !selection )
             return
-        console.log( "!" )
         e.clipboardData.setData( "text/plain", selectionText() )
         e.preventDefault()
     }
