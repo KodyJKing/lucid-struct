@@ -1,8 +1,12 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useConstant } from "../hooks/useConstant"
 
 import classes from "./CanvasTable.module.css"
 import { DataType, DataTypes } from "./TableView.DataType"
+import { DisplayOptions, DisplayOptions_default, SelectionRange } from "./TableView"
+import { DragState, useDrag } from "../hooks/useDrag"
+
+import * as Runtime from "../../wailsjs/runtime/runtime"
 
 function updateSize( canvas: HTMLCanvasElement, w: number, h: number ) {
     if ( canvas.width !== w ) {
@@ -19,32 +23,86 @@ type TableState = {
     canvasRef: React.RefObject<HTMLCanvasElement>,
     data: DataView,
     heat: Uint8ClampedArray,
-    dataType: DataType,
+
+    selectionRange: SelectionRange | undefined,
     baseAddress: bigint,
-    hex: boolean,
+    displayOptions: DisplayOptions,
+
+    layout: {
+        contentStartX: number,
+        contentStartY: number,
+        cellWidth: number,
+        rowHeight: number,
+        bytesPerRow: number,
+    }
 }
 
-function newTableState( canvasRef: React.RefObject<HTMLCanvasElement>, data: DataView, dataType: DataType ) {
+function newTableState( canvasRef: React.RefObject<HTMLCanvasElement>, data: DataView ): TableState {
     return {
-        canvasRef, data, dataType,
-        heat: new Uint8ClampedArray( cellCount( data, dataType ) ),
+        canvasRef, data,
+        heat: new Uint8ClampedArray( cellCount( data, DisplayOptions_default.dataType ) ),
+        selectionRange: undefined,
         baseAddress: 0n,
-        hex: true,
+        displayOptions: DisplayOptions_default,
+        layout: {
+            contentStartX: 0,
+            contentStartY: 0,
+            cellWidth: 0,
+            rowHeight: 0,
+            bytesPerRow: 0,
+        }
     }
+}
+
+function getByteOffset( state: TableState, x: number, y: number ) {
+    const { layout, displayOptions } = state
+    const { dataType } = displayOptions
+    const typeSize = DataTypes[ dataType ].size
+    const { contentStartX, contentStartY, cellWidth, rowHeight, bytesPerRow } = layout
+    const column = Math.floor( ( x - contentStartX ) / cellWidth )
+    const row = Math.floor( ( y - contentStartY ) / rowHeight )
+
+    if ( column < 0 || column >= bytesPerRow )
+        return -1
+
+    return row * bytesPerRow + column * typeSize
+}
+
+function getSelectionText( state: TableState ) {
+    if ( !state.selectionRange )
+        return ""
+
+    const { data, selectionRange, displayOptions } = state
+    const { dataType } = displayOptions
+    const dataTypeInfo = DataTypes[ dataType ]
+    const typeSize = dataTypeInfo.size
+
+    const { start, end } = selectionRange
+
+    let result: string[] = []
+    for ( let i = start; i <= end; i += typeSize ) {
+        if ( i + typeSize >= data.byteLength )
+            result.push( "??" )
+        else
+            result.push( dataTypeInfo.format( data, i, displayOptions.hex ) )
+    }
+    return result.join( " " )
 }
 
 function cellCount( data: DataView, dataType: DataType ) {
     return Math.floor( data.byteLength / DataTypes[ dataType ].size )
 }
 
-function updateTableData( state: TableState, data: DataView, dataType: DataType = "float32" ) {
+function updateTableData( state: TableState, data: DataView ) {
     const prev = state.data
 
     state.data = data
-    state.dataType = dataType
+
+    const dataType = state.displayOptions.dataType
+    const dataTypeInfo = DataTypes[ dataType ]
+    const typeSize = dataTypeInfo.size
 
     const minLength = Math.min( data.byteLength, prev.byteLength )
-    const typeSize = DataTypes[ state.dataType ].size
 
     const _cellCount = cellCount( data, dataType )
     if ( _cellCount > state.heat.byteLength )
@@ -73,6 +131,8 @@ function drawTable( state: TableState ) {
 
     const containerStyle = getComputedStyle( container )
     const containerFont = containerStyle.font
+    const accentColor = containerStyle.getPropertyValue( "--accent" )
+    const borderColor = containerStyle.getPropertyValue( "--border" )
     const textColor = containerStyle.getPropertyValue( "--text" )
     const headerColor = containerStyle.getPropertyValue( "--primary-2" )
     const rowHeightStyle = containerStyle.getPropertyValue( "--rowHeight" )
@@ -85,21 +145,31 @@ function drawTable( state: TableState ) {
     const lastRow = Math.ceil( bottom / rowHeight )
 
     // Todo: Get address size from process.
-    const maxAddress = state.baseAddress + BigInt( state.data.byteLength )
-    const maxAddressString = maxAddress.toString( 16 )
-    const addressTemplate = "00000000"
-    const addressWidth = Math.floor( Math.max(
-        ctx.measureText( maxAddressString ).width,
-        ctx.measureText( addressTemplate ).width
-    ) ) + 4
+    let addressTextWidth = 0
+    if ( state.displayOptions.showAddress ) {
+        const maxAddress = state.baseAddress + BigInt( state.data.byteLength )
+        const maxAddressString = maxAddress.toString( 16 )
+        addressTextWidth = Math.floor( Math.max(
+            ctx.measureText( maxAddressString ).width,
+            ctx.measureText( "00000000" ).width
+        ) )
+    } else {
+        const maxOffset = state.data.byteLength - 1
+        const maxOffsetString = maxOffset.toString( 16 ).padStart( 2, "0" )
+        addressTextWidth = Math.floor( Math.max(
+            ctx.measureText( maxOffsetString ).width,
+            ctx.measureText( "000" ).width
+        ) )
+    }
+    const addressWidth = addressTextWidth + 4
 
     let tableWidth = container.clientWidth
     const contentWidth = tableWidth - addressWidth
 
-    const dataType = state.dataType
+    const dataType = state.displayOptions.dataType
     const dataTypeInfo = DataTypes[ dataType ]
 
-    const minCellWidth = dataTypeInfo.cellWidth( state.hex )
+    const minCellWidth = dataTypeInfo.cellWidth( state.displayOptions.hex )
     const cellsPerRow = Math.max( 1, Math.floor( contentWidth / minCellWidth ) )
     const rowCount = Math.ceil( state.data.byteLength / cellsPerRow )
     const typeSize = dataTypeInfo.size
@@ -111,7 +181,13 @@ function drawTable( state: TableState ) {
         const offset = byteOffset( row, column )
         if ( offset + typeSize > state.data.byteLength )
             return "??"
-        return dataTypeInfo.format( state.data, offset, state.hex )
+        return dataTypeInfo.format( state.data, offset, state.displayOptions.hex )
+    }
+    const isSelected = ( row: number, column: number ) => {
+        if ( !state.selectionRange )
+            return false
+        const offset = byteOffset( row, column )
+        return offset >= state.selectionRange.start && offset <= state.selectionRange.end
     }
 
     const spareWidth = contentWidth - cellsPerRow * minCellWidth
@@ -121,9 +197,17 @@ function drawTable( state: TableState ) {
     const contentWidthWithPadding = cellsPerRow * cellWidth
     const leftoverWidth = contentWidth - contentWidthWithPadding
     const contentPadding = Math.floor( leftoverWidth / 2 )
+    const contentStartX = contentPadding + addressWidth
+    const contentStartY = rowHeight
 
-    const cellX = ( column: number ) => contentPadding + addressWidth + column * cellWidth
-    const cellY = ( row: number ) => ( row + 1 ) * rowHeight
+    state.layout.cellWidth = cellWidth
+    state.layout.rowHeight = rowHeight
+    state.layout.contentStartX = contentStartX
+    state.layout.contentStartY = contentStartY
+    state.layout.bytesPerRow = bytesPerRow
+
+    const cellX = ( column: number ) => contentStartX + column * cellWidth
+    const cellY = ( row: number ) => contentStartY + row * rowHeight
 
     let tableHeight = Math.max(
         ( rowCount + 1 ) * rowHeight,
@@ -134,12 +218,19 @@ function drawTable( state: TableState ) {
 
     ctx.clearRect( 0, 0, tableWidth, tableHeight )
 
-    // Draw content
+    // Content
     for ( let row = firstRow; row < lastRow; row++ ) {
         const y = cellY( row )
         for ( let column = 0; column < cellsPerRow; column++ ) {
             const x = cellX( column )
             const value = formatValue( row, column )
+
+            const selected = isSelected( row, column )
+            if ( selected ) {
+                ctx.fillStyle = accentColor
+                ctx.fillRect( x, y, cellWidth, rowHeight )
+            }
+
             const offset = byteOffset( row, column )
             const headIndex = Math.floor( offset / typeSize )
             const heat = state.heat[ headIndex ]
@@ -148,6 +239,8 @@ function drawTable( state: TableState ) {
                 ctx.fillRect( x, y, cellWidth, rowHeight )
                 state.heat[ headIndex ] -= 2
             }
+
+
             ctx.fillStyle = textColor
             ctx.font = containerFont
             ctx.textAlign = "center"
@@ -158,11 +251,16 @@ function drawTable( state: TableState ) {
         }
     }
 
-    // Draw addresses
+    // Addresses
     for ( let row = firstRow; row < lastRow; row++ ) {
         const offset = row * bytesPerRow
-        const address = state.baseAddress + BigInt( offset )
-        const text = address.toString( 16 ).toUpperCase()
+        let text = ""
+        if ( state.displayOptions.showAddress ) {
+            const address = state.baseAddress + BigInt( offset )
+            text = address.toString( 16 ).toUpperCase()
+        } else {
+            text = offset.toString( 16 ).toUpperCase().padStart( 2, "0" )
+        }
         const y = cellY( row )
         ctx.fillStyle = textColor
         ctx.font = containerFont
@@ -173,12 +271,13 @@ function drawTable( state: TableState ) {
         ctx.fillText( text, drawX, drawY )
     }
 
-    // Draw header rect
+    // Header rect
     const rowStart = top + rowHeight
     ctx.fillStyle = headerColor
     ctx.fillRect( 0, top, tableWidth, rowHeight )
 
-    { // Draw address header
+    // Address header
+    if ( state.displayOptions.showAddress ) {
         const text = "address"
         const drawX = addressWidth - 2
         const drawY = top + rowHeight / 2
@@ -189,7 +288,7 @@ function drawTable( state: TableState ) {
         ctx.fillText( text, drawX, drawY )
     }
 
-    // Draw offsets headers
+    // Offsets headers
     for ( let column = 0; column < cellsPerRow; column++ ) {
         const x = cellX( column )
         const text = ( column * typeSize ).toString( 16 ).padStart( 2, "0" ).toUpperCase()
@@ -202,46 +301,62 @@ function drawTable( state: TableState ) {
         ctx.fillText( text, drawX, drawY )
     }
 
+    // Vertical border
     ctx.beginPath()
-    ctx.strokeStyle = textColor
+    ctx.strokeStyle = borderColor
     ctx.lineWidth = 1
-    ctx.moveTo( addressWidth + 2, 0 )
-    ctx.lineTo( addressWidth + 2, tableHeight )
+    ctx.moveTo( addressWidth + 2.5, 0 )
+    ctx.lineTo( addressWidth + 2.5, tableHeight )
     ctx.stroke()
 
+    // Horizontal border
     ctx.beginPath()
-    ctx.strokeStyle = textColor
+    ctx.strokeStyle = borderColor
     ctx.lineWidth = 1
-    ctx.moveTo( 0, rowStart )
-    ctx.lineTo( tableWidth, rowStart )
+    ctx.moveTo( 0, rowStart + .5 )
+    ctx.lineTo( tableWidth, rowStart + .5 )
     ctx.stroke()
-}
-
-function drawTableContent(
-    state: TableState
-) {
-
 }
 
 type CanvasTableProps = {
     baseAddress: bigint,
     data: DataView,
-    dataType: DataType,
-    hex: boolean,
+    displayOptions: DisplayOptions,
+    selectionRange: SelectionRange | undefined,
+    setSelectionRange: ( range: SelectionRange | undefined ) => void,
 } & React.HTMLAttributes<HTMLCanvasElement>
 
 export function CanvasTable( props: CanvasTableProps ) {
-    const { baseAddress, data, dataType, hex, ...rest } = props
+    const {
+        baseAddress, data, displayOptions,
+        selectionRange, setSelectionRange,
+        ...rest } = props
 
     const canvasRef = useRef<HTMLCanvasElement>( null )
-    const state = useConstant( () => newTableState( canvasRef, data, dataType ) )
+    const state = useConstant( () => newTableState( canvasRef, data ) )
 
+    state.selectionRange = selectionRange
     state.baseAddress = baseAddress
-    state.hex = hex
+    state.displayOptions = displayOptions
+
+    function handleDrag( e: DragState ) {
+        if ( e.button !== 0 ) return
+        const { current, origin } = e
+        const offset0 = getByteOffset( state, origin.x, origin.y )
+        const offset1 = getByteOffset( state, current.x, current.y )
+        const minOffset = Math.max( 0, Math.min( offset0, offset1 ) )
+        const maxOffset = Math.max( 0, Math.max( offset0, offset1 ) )
+
+        setSelectionRange( { start: minOffset, end: maxOffset } )
+    }
+    useDrag( canvasRef, {
+        onDragBegin: handleDrag,
+        onDragUpdate: handleDrag
+    } )
 
     useEffect( () => {
-        updateTableData( state, data, dataType )
-    }, [ baseAddress, data, dataType ] )
+        updateTableData( state, data )
+    }, [ baseAddress, data, displayOptions ] )
 
     useEffect( () => {
         let rendering = true
@@ -258,7 +373,17 @@ export function CanvasTable( props: CanvasTableProps ) {
         }
     }, [ canvasRef ] )
 
-    return <div className={classes.Container}>
+    return <div className={classes.Container} tabIndex={0}
+        onKeyDown={( e ) => {
+            // Copy
+            if ( e.key === "c" && e.ctrlKey ) {
+                const selection = state.selectionRange
+                if ( !selection )
+                    return
+                Runtime.ClipboardSetText( getSelectionText( state ) )
+            }
+        }}
+    >
         <canvas className={classes.Canvas} ref={canvasRef} {...rest} />
     </div>
 }

@@ -8,6 +8,8 @@
 
     font-family: var(--font-mono);
     
+    outline: none;
+    
     --rowHeight: 20px;
 }
 
@@ -15,6 +17,7 @@
     flex: 1 1 0;
     width: 100%;
     background-color: transparent;
+
 
     background-image: repeating-linear-gradient(
         to bottom,

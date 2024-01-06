@@ -5,8 +5,9 @@ import useSize from "../hooks/useSize"
 import { TablePosition, TableRange, getRowAndColumn, getSelectionRange } from "../util/table"
 import { DataType, DataTypes } from "./TableView.DataType"
 import { LabledCheckBox } from "./LabledCheckbox"
+import { CanvasTable } from "./CanvasTable"
 
-type SelectionRange = {
+export type SelectionRange = {
     start: number,
     end: number,
 }
@@ -85,76 +86,6 @@ export function TableView( props: {
         return false
     }
 
-    const headers: any[] = []
-    const addressOrOffset = displayOptions.showAddress ? "Address" : "Offset"
-    headers.push( <th key="address" ref={addressRef} className={classes.TableViewAddress}>{addressOrOffset}</th> )
-    for ( let i = 0; i < cellsPerRow; i++ )
-        headers.push( <th key={i}>{formatHex( i * dataTypeInfo.size )}</th> )
-    const headerRow = <tr key="header">{headers}</tr>
-
-    const rows: any[] = []
-    for ( let r = 0; r < rowCount; r++ ) {
-        const row: any[] = []
-        const addressOrOffset = displayOptions.showAddress ? props.baseAddress + BigInt( r * bytesPerRow ) : r * bytesPerRow
-        row.push( <td key="address">{formatHex( addressOrOffset )}</td> )
-        for ( let c = 0; c < cellsPerRow; c++ ) {
-            const changed = changedAt( getOffset( r, c ) )
-            const selected = isSelected( r, c )
-            let classNames: string[] = []
-            if ( selected )
-                classNames.push( classes.TableViewSelected )
-            if ( changed )
-                classNames.push( classes.TableViewChanged )
-            if ( !selected && !changed )
-                classNames.push( classes.TableViewDefault )
-
-            const cell = c + r * cellsPerRow
-            const offset = cell * dataTypeInfo.size
-            const outOfBounds = offset + dataTypeInfo.size > props.data.byteLength
-            const text = outOfBounds ? "??" : dataTypeInfo.format( props.data, offset, displayOptions.hex )
-
-            row.push( <td key={cell} className={classNames.join( " " )}>{text}</td> )
-        }
-        rows.push( <tr key={r}>{row}</tr> )
-    }
-
-    function onPointerMove( e: React.PointerEvent<HTMLTableElement> ) {
-        if ( selectAnchored )
-            return
-        const target = e.target
-        if ( !( target instanceof Node ) )
-            return
-
-        let range = getSelectionRange()
-        if ( range ) {
-            setSelectionFromTableRange( range )
-            return
-        }
-
-        const position = getRowAndColumn( target )
-        if ( !position )
-            return
-        setSelectionFromTableRange( { start: position, end: position } )
-    }
-    function onPointerUp( e: React.PointerEvent<HTMLTableElement> ) {
-        const target = e.target
-        if ( !( target instanceof Node ) )
-            return
-        setSelectionFromTableRange( getSelectionRange() )
-        setSelectAnchored( true )
-        // window.getSelection()?.removeAllRanges()
-    }
-    function onKeyUp( e: React.KeyboardEvent<HTMLTableElement> ) {
-        if ( e.key === "Escape" ) {
-            setSelection( undefined )
-            setSelectAnchored( false )
-            window.getSelection()?.removeAllRanges()
-        }
-    }
-    function onPointerLeave( e: React.PointerEvent<HTMLTableElement> ) {
-        if ( !selectAnchored )
-            setSelection( undefined )
-    }
     function onCopy( e: React.ClipboardEvent<HTMLTableElement> ) {
         if ( !selection )
             return
@@ -186,30 +117,29 @@ export function TableView( props: {
             </div>
 
             {/* Table */}
-            <div className={classes.TableOuter}>
-                <table
-                    onPointerLeave={onPointerLeave}
-                    onPointerMove={onPointerMove}
-                    onPointerUp={onPointerUp}
-                    onKeyUp={onKeyUp}
-                    onCopy={onCopy}
-                    tabIndex={0}
-                >
-                    <tbody>
-                        {headerRow}
-                        {rows}
-                    </tbody>
-                </table>
-            </div>
+            <CanvasTable
+                data={props.data}
+                displayOptions={displayOptions}
+                baseAddress={props.baseAddress}
+                selectionRange={selection}
+                setSelectionRange={setSelection}
+            />
         </div>
     )
 }
 
-type DisplayOptions = {
+export type DisplayOptions = {
     dataType: DataType,
     hex: boolean,
     showAddress: boolean,
 }
+
+export const DisplayOptions_default: DisplayOptions = {
+    dataType: "uint8",
+    hex: true,
+    showAddress: true,
+}
+
 function DisplayOptionsInput( props: {
     displayOptions: DisplayOptions,
     setDisplayOptions: ( options: DisplayOptions ) => void,

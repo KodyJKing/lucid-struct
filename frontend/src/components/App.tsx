@@ -43,11 +43,10 @@ export default function App() {
                 <video id="mainVideo" ref={state.videoRef} width="1024" height="768" controls />
             </Resizable>
 
-            <CanvasTable
+            <TableView
                 baseAddress={address}
                 data={data}
-                dataType="uint8"
-                hex={true}
+                byteCount={size}
             />
 
         </div>
