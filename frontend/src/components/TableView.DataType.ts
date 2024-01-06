@@ -49,7 +49,7 @@ function floatType( size: number, getter: string ) {
             const val = getterFunc.call( data, offset, true )
             const fixed = val.toFixed( 4 )
             const exp = val.toExponential( 1 )
-            return exp.length < fixed.length ? exp : fixed
+            return exp.length + 1 < fixed.length ? exp : fixed
         },
     }
 }
