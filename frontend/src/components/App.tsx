@@ -3,7 +3,7 @@ import * as Backend from "../../wailsjs/go/main/App"
 import { win32 } from '../../wailsjs/go/models'
 import { Resizable } from './Resizable'
 import { TableView } from './TableView'
-import { useAppState } from './App.state'
+import { RecordingState, useAppState } from './App.state'
 
 import classes from "./App.module.css"
 import { CanvasTable } from './CanvasTable'
@@ -17,8 +17,20 @@ export default function App() {
         address,
         data,
         pickScreen,
-        isRecording
     } = state
+
+    const canRecord = !!state.stream && proc && size > 0 && address > BigInt( 0 ) && address + BigInt( size ) < 0x7fffffffffffffff
+
+    function recordButton() {
+        switch ( state.recordingState ) {
+            case RecordingState.None:
+                return <button title="begin recording" onClick={state.recordStream} disabled={!canRecord}>record</button>
+            case RecordingState.Recording:
+                return <button title="stop recording" onClick={state.stopRecordStream}>stop</button>
+            case RecordingState.Playing:
+                return <button title="clear recording" onClick={state.clearRecording}>Clear</button>
+        }
+    }
 
     return (
         <div id="App">
@@ -35,8 +47,9 @@ export default function App() {
                         setSize( event.target.valueAsNumber )
                     }}
                 />
-                {!state.isRecording && <button title="begin recording" onClick={state.recordStream}>record</button>}
-                {state.isRecording && <button title="stop recording" onClick={state.stopRecordStream}>stop</button>}
+                {recordButton()}
+                {/* {!state.isRecording && <button title="begin recording" onClick={state.recordStream}>record</button>}
+                {state.isRecording && <button title="stop recording" onClick={state.stopRecordStream}>stop</button>} */}
             </div>
 
             <Resizable bottom>

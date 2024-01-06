@@ -7,6 +7,12 @@ const emptyData = new DataView( new ArrayBuffer( 0 ) )
 
 export type AppState = ReturnType<typeof useAppState>
 
+export enum RecordingState {
+    None,
+    Recording,
+    Playing,
+}
+
 export function useAppState() {
     const [ proc, setProc ] = useState<win32.ProcessInfo>()
     const [ size, setSize ] = useState<number>( 1024 )
@@ -18,7 +24,7 @@ export function useAppState() {
     const [ stream, _setStream ] = useState<MediaStream | null>( null )
     const recordStartTime = useRef( 0 )
     const mediaRecorder = useRef<MediaRecorder | null>( null )
-    const [ isRecording, setIsRecording ] = useState( false )
+    const [ recordingState, setIsRecordingState ] = useState<RecordingState>( RecordingState.None )
     const chunks: Blob[] = useRef( [] ).current
     const recordingUrl = useRef( "" )
 
@@ -42,7 +48,7 @@ export function useAppState() {
         if ( !stream )
             return
         let recorder = mediaRecorder.current = new MediaRecorder( stream )
-        setIsRecording( true )
+        setIsRecordingState( RecordingState.Recording )
         recorder.onstart = () => {
             chunks.length = 0
         }
@@ -62,7 +68,7 @@ export function useAppState() {
             return
         mediaRecorder.current.stop()
         mediaRecorder.current = null
-        setIsRecording( false )
+        setIsRecordingState( RecordingState.Playing )
 
         Backend.StopRecording()
     }
@@ -93,13 +99,25 @@ export function useAppState() {
         }
     }
 
+    function clearRecording() {
+        if ( recordingUrl.current ) URL.revokeObjectURL( recordingUrl.current )
+        recordingUrl.current = ""
+        const video = videoRef.current
+        if ( !video )
+            return
+        video.srcObject = null
+        video.src = ""
+        video.onloadedmetadata = null
+
+        setIsRecordingState( RecordingState.None )
+    }
+
     // Poll memory if we're not recording or playing back.
     useLoop( 100, () => {
-        const video = videoRef.current
-        const isPlaying = video && !!video.src // This check might not be robust.
+        const isPlaying = recordingState == RecordingState.Playing
         if ( isPlaying )
             return
-        if ( !proc || !proc.pid || isRecording ) {
+        if ( !proc || !proc.pid || recordingState == RecordingState.Recording ) {
             if ( data !== emptyData )
                 setData( emptyData )
             return
@@ -117,25 +135,20 @@ export function useAppState() {
         const video = videoRef.current
         if ( !video )
             return
-
-        function onKeyPress( e: KeyboardEvent ) {
-            if ( e.key == "." ) {
-                console.log( "." )
-                video?.pause()
-                video!.currentTime += 1 / 25
-            }
-            if ( e.key == "," ) {
-                console.log( "," )
-                video?.pause()
-                video!.currentTime -= 1 / 25
-            }
+        const step = ( delta: number ) => {
+            video.pause()
+            video.currentTime += delta
         }
-
+        function onKeyPress( e: KeyboardEvent ) {
+            if ( e.key == "." )
+                step( 1 / 25 )
+            if ( e.key == "," )
+                step( -1 / 25 )
+        }
         window.addEventListener( "keypress", onKeyPress )
         return () => {
             window.removeEventListener( "keypress", onKeyPress )
         }
-
     }, [ videoRef.current ] )
 
     return {
@@ -153,7 +166,8 @@ export function useAppState() {
         pickScreen,
         recordStream,
         stopRecordStream,
-        isRecording,
+        clearRecording,
+        recordingState,
         recordingUrl,
     }
 

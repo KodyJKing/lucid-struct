@@ -42,7 +42,7 @@ function newTableState( canvasRef: React.RefObject<HTMLCanvasElement>, data: Dat
         canvasRef, data,
         heat: new Uint8ClampedArray( cellCount( data, DisplayOptions_default.dataType ) ),
         selection: undefined,
-        baseAddress: 0n,
+        baseAddress: BigInt( 0 ),
         displayOptions: DisplayOptions_default,
 
         layout: {
