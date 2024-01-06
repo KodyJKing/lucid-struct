@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { win32 } from "../../wailsjs/go/models"
 import { useLoop } from "../hooks/useLoop"
 import * as Backend from "../../wailsjs/go/main/App"
@@ -55,7 +55,7 @@ export function useAppState() {
         recorder.start()
 
         if ( !proc || !proc.pid ) return
-        Backend.StartRecording( proc.pid, addressString, size, 100 )
+        Backend.StartRecording( proc.pid, addressString, size, 50 )
     }
     function stopRecordStream() {
         if ( !mediaRecorder.current )
@@ -111,6 +111,32 @@ export function useAppState() {
                 setData( emptyData )
         } )
     } )
+
+    // Extra video controls
+    useEffect( () => {
+        const video = videoRef.current
+        if ( !video )
+            return
+
+        function onKeyPress( e: KeyboardEvent ) {
+            if ( e.key == "." ) {
+                console.log( "." )
+                video?.pause()
+                video!.currentTime += 1 / 25
+            }
+            if ( e.key == "," ) {
+                console.log( "," )
+                video?.pause()
+                video!.currentTime -= 1 / 25
+            }
+        }
+
+        window.addEventListener( "keypress", onKeyPress )
+        return () => {
+            window.removeEventListener( "keypress", onKeyPress )
+        }
+
+    }, [ videoRef.current ] )
 
     return {
         proc,

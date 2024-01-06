@@ -24,7 +24,7 @@ type TableState = {
     data: DataView,
     heat: Uint8ClampedArray,
 
-    selectionRange: SelectionRange | undefined,
+    selection: SelectionRange | undefined,
     baseAddress: bigint,
     displayOptions: DisplayOptions,
 
@@ -41,9 +41,10 @@ function newTableState( canvasRef: React.RefObject<HTMLCanvasElement>, data: Dat
     return {
         canvasRef, data,
         heat: new Uint8ClampedArray( cellCount( data, DisplayOptions_default.dataType ) ),
-        selectionRange: undefined,
+        selection: undefined,
         baseAddress: 0n,
         displayOptions: DisplayOptions_default,
+
         layout: {
             contentStartX: 0,
             contentStartY: 0,
@@ -69,10 +70,10 @@ function getByteOffset( state: TableState, x: number, y: number ) {
 }
 
 function getSelectionText( state: TableState ) {
-    if ( !state.selectionRange )
+    if ( !state.selection )
         return ""
 
-    const { data, selectionRange, displayOptions } = state
+    const { data, selection: selectionRange, displayOptions } = state
     const { dataType } = displayOptions
     const dataTypeInfo = DataTypes[ dataType ]
     const typeSize = dataTypeInfo.size
@@ -184,10 +185,10 @@ function drawTable( state: TableState ) {
         return dataTypeInfo.format( state.data, offset, state.displayOptions.hex )
     }
     const isSelected = ( row: number, column: number ) => {
-        if ( !state.selectionRange )
+        if ( !state.selection )
             return false
         const offset = byteOffset( row, column )
-        return offset >= state.selectionRange.start && offset <= state.selectionRange.end
+        return offset >= state.selection.start && offset <= state.selection.end
     }
 
     const spareWidth = contentWidth - cellsPerRow * minCellWidth
@@ -218,6 +219,8 @@ function drawTable( state: TableState ) {
 
     ctx.clearRect( 0, 0, tableWidth, tableHeight )
 
+    ctx.font = containerFont
+
     // Content
     for ( let row = firstRow; row < lastRow; row++ ) {
         const y = cellY( row )
@@ -240,9 +243,8 @@ function drawTable( state: TableState ) {
                 state.heat[ headIndex ] -= 2
             }
 
-
             ctx.fillStyle = textColor
-            ctx.font = containerFont
+            // ctx.font = containerFont
             ctx.textAlign = "center"
             ctx.textBaseline = "middle"
             const drawX = x + minCellWidth / 2 + wPad
@@ -263,7 +265,7 @@ function drawTable( state: TableState ) {
         }
         const y = cellY( row )
         ctx.fillStyle = textColor
-        ctx.font = containerFont
+        // ctx.font = containerFont
         ctx.textAlign = "right"
         ctx.textBaseline = "middle"
         const drawX = addressWidth - 2
@@ -282,7 +284,7 @@ function drawTable( state: TableState ) {
         const drawX = addressWidth - 2
         const drawY = top + rowHeight / 2
         ctx.fillStyle = textColor
-        ctx.font = containerFont
+        // ctx.font = containerFont
         ctx.textAlign = "right"
         ctx.textBaseline = "middle"
         ctx.fillText( text, drawX, drawY )
@@ -293,7 +295,7 @@ function drawTable( state: TableState ) {
         const x = cellX( column )
         const text = ( column * typeSize ).toString( 16 ).padStart( 2, "0" ).toUpperCase()
         ctx.fillStyle = textColor
-        ctx.font = containerFont
+        // ctx.font = containerFont
         ctx.textAlign = "center"
         ctx.textBaseline = "middle"
         const drawX = x + minCellWidth / 2 + wPad
@@ -322,23 +324,28 @@ type CanvasTableProps = {
     baseAddress: bigint,
     data: DataView,
     displayOptions: DisplayOptions,
-    selectionRange: SelectionRange | undefined,
-    setSelectionRange: ( range: SelectionRange | undefined ) => void,
+    selection: SelectionRange | undefined,
+    setSelection: ( range: SelectionRange | undefined ) => void,
 } & React.HTMLAttributes<HTMLCanvasElement>
 
 export function CanvasTable( props: CanvasTableProps ) {
     const {
         baseAddress, data, displayOptions,
-        selectionRange, setSelectionRange,
+        selection, setSelection,
         ...rest } = props
 
     const canvasRef = useRef<HTMLCanvasElement>( null )
     const state = useConstant( () => newTableState( canvasRef, data ) )
 
-    state.selectionRange = selectionRange
+    state.selection = selection
     state.baseAddress = baseAddress
     state.displayOptions = displayOptions
+    useEffect( () => {
+        updateTableData( state, data )
+    }, [ baseAddress, data, displayOptions ] )
 
+    // Selection logic
+    const selectionAnchored = useRef<boolean>( false )
     function handleDrag( e: DragState ) {
         if ( e.button !== 0 ) return
         const { current, origin } = e
@@ -347,16 +354,25 @@ export function CanvasTable( props: CanvasTableProps ) {
         const minOffset = Math.max( 0, Math.min( offset0, offset1 ) )
         const maxOffset = Math.max( 0, Math.max( offset0, offset1 ) )
 
-        setSelectionRange( { start: minOffset, end: maxOffset } )
+        setSelection( { start: minOffset, end: maxOffset } )
+        selectionAnchored.current = true
     }
     useDrag( canvasRef, {
         onDragBegin: handleDrag,
         onDragUpdate: handleDrag
     } )
+    function onPointerMove( e: React.PointerEvent<HTMLCanvasElement> ) {
+        const box = canvasRef.current?.getBoundingClientRect()
+        if ( !box )
+            return
+        const x = e.clientX - box.left
+        const y = e.clientY - box.top
+        const offset = getByteOffset( state, x, y )
+        if ( offset >= 0 && !selectionAnchored.current ) {
+            setSelection( { start: offset, end: offset } )
+        }
 
-    useEffect( () => {
-        updateTableData( state, data )
-    }, [ baseAddress, data, displayOptions ] )
+    }
 
     useEffect( () => {
         let rendering = true
@@ -377,13 +393,18 @@ export function CanvasTable( props: CanvasTableProps ) {
         onKeyDown={( e ) => {
             // Copy
             if ( e.key === "c" && e.ctrlKey ) {
-                const selection = state.selectionRange
+                const selection = state.selection
                 if ( !selection )
                     return
                 Runtime.ClipboardSetText( getSelectionText( state ) )
             }
+            // Escape
+            if ( e.key === "Escape" ) {
+                setSelection( undefined )
+                selectionAnchored.current = false
+            }
         }}
     >
-        <canvas className={classes.Canvas} ref={canvasRef} {...rest} />
+        <canvas className={classes.Canvas} ref={canvasRef} {...rest} onPointerMove={onPointerMove} />
     </div>
 }
