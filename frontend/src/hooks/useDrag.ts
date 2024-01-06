@@ -3,12 +3,16 @@ import { useConstant } from "./useConstant";
 
 type Position = { x: number; y: number }
 
-export type DragState = {
-    isDragging: boolean
-    origin: Position
-    current: Position
-    pointerId: number
-    button: number
+export type DragState = ReturnType<typeof useDragState>
+//
+function useDragState() {
+    return useConstant( () => ( {
+        isDragging: false,
+        origin: { x: 0, y: 0 } as Position,
+        current: { x: 0, y: 0 } as Position,
+        pointerId: -1,
+        button: -1
+    } ) )
 }
 
 export function useDrag(
@@ -22,13 +26,7 @@ export function useDrag(
     const handlerRef = useRef( handlers )
     handlerRef.current = handlers
 
-    const state = useConstant<DragState>( () => ( {
-        isDragging: false,
-        origin: { x: 0, y: 0 },
-        current: { x: 0, y: 0 },
-        pointerId: -1,
-        button: -1
-    } ) )
+    const state = useDragState()
 
     useEffect( () => {
 

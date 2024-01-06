@@ -8,51 +8,26 @@ import { DragState, useDrag } from "../hooks/useDrag"
 
 import * as Runtime from "../../wailsjs/runtime/runtime"
 
-function updateSize( canvas: HTMLCanvasElement, w: number, h: number ) {
-    if ( canvas.width !== w ) {
-        canvas.width = w
-        canvas.style.width = `${ w }px`
-    }
-    if ( canvas.height !== h ) {
-        canvas.height = h
-        canvas.style.height = `${ h }px`
-    }
-}
-
-type TableState = {
-    canvasRef: React.RefObject<HTMLCanvasElement>,
-    data: DataView,
-    heat: Uint8ClampedArray,
-
-    selection: SelectionRange | undefined,
-    baseAddress: bigint,
-    displayOptions: DisplayOptions,
-
-    layout: {
-        contentStartX: number,
-        contentStartY: number,
-        cellWidth: number,
-        rowHeight: number,
-        bytesPerRow: number,
-    }
-}
-
-function newTableState( canvasRef: React.RefObject<HTMLCanvasElement>, data: DataView ): TableState {
-    return {
-        canvasRef, data,
-        heat: new Uint8ClampedArray( cellCount( data, DisplayOptions_default.dataType ) ),
-        selection: undefined,
-        baseAddress: BigInt( 0 ),
-        displayOptions: DisplayOptions_default,
-
-        layout: {
-            contentStartX: 0,
-            contentStartY: 0,
-            cellWidth: 0,
-            rowHeight: 0,
-            bytesPerRow: 0,
+type TableState = ReturnType<typeof useTableState>
+//
+function useTableState( canvasRef: React.RefObject<HTMLCanvasElement> ) {
+    return useConstant( () => {
+        return {
+            canvasRef,
+            data: new DataView( new ArrayBuffer( 0 ) ),
+            heat: new Uint8ClampedArray( 0 ),
+            selection: undefined as SelectionRange | undefined,
+            baseAddress: BigInt( 0 ),
+            displayOptions: DisplayOptions_default,
+            layout: {
+                contentStartX: 0,
+                contentStartY: 0,
+                cellWidth: 0,
+                rowHeight: 0,
+                bytesPerRow: 0,
+            }
         }
-    }
+    } )
 }
 
 function getByteOffset( state: TableState, x: number, y: number ) {
@@ -114,6 +89,17 @@ function updateTableData( state: TableState, data: DataView ) {
         const current = data.getUint8( i )
         if ( previous !== current )
             state.heat[ Math.floor( i / typeSize ) ] = 255
+    }
+}
+
+function updateSize( canvas: HTMLCanvasElement, w: number, h: number ) {
+    if ( canvas.width !== w ) {
+        canvas.width = w
+        canvas.style.width = `${ w }px`
+    }
+    if ( canvas.height !== h ) {
+        canvas.height = h
+        canvas.style.height = `${ h }px`
     }
 }
 
@@ -335,7 +321,7 @@ export function CanvasTable( props: CanvasTableProps ) {
         ...rest } = props
 
     const canvasRef = useRef<HTMLCanvasElement>( null )
-    const state = useConstant( () => newTableState( canvasRef, data ) )
+    const state = useTableState( canvasRef )
 
     state.selection = selection
     state.baseAddress = baseAddress
@@ -371,7 +357,24 @@ export function CanvasTable( props: CanvasTableProps ) {
         if ( offset >= 0 && !selectionAnchored.current ) {
             setSelection( { start: offset, end: offset } )
         }
-
+    }
+    function onPointerLeave( e: React.PointerEvent<HTMLCanvasElement> ) {
+        if ( !selectionAnchored.current )
+            setSelection( undefined )
+    }
+    function onKeyDown( e: React.KeyboardEvent<HTMLDivElement> ) {
+        // Copy
+        if ( e.key === "c" && e.ctrlKey ) {
+            const selection = state.selection
+            if ( !selection )
+                return
+            Runtime.ClipboardSetText( getSelectionText( state ) )
+        }
+        // Escape
+        if ( e.key === "Escape" ) {
+            setSelection( undefined )
+            selectionAnchored.current = false
+        }
     }
 
     useEffect( () => {
@@ -389,22 +392,10 @@ export function CanvasTable( props: CanvasTableProps ) {
         }
     }, [ canvasRef ] )
 
-    return <div className={classes.Container} tabIndex={0}
-        onKeyDown={( e ) => {
-            // Copy
-            if ( e.key === "c" && e.ctrlKey ) {
-                const selection = state.selection
-                if ( !selection )
-                    return
-                Runtime.ClipboardSetText( getSelectionText( state ) )
-            }
-            // Escape
-            if ( e.key === "Escape" ) {
-                setSelection( undefined )
-                selectionAnchored.current = false
-            }
-        }}
-    >
-        <canvas className={classes.Canvas} ref={canvasRef} {...rest} onPointerMove={onPointerMove} />
+    return <div className={classes.Container} tabIndex={0} onKeyDown={onKeyDown}>
+        <canvas className={classes.Canvas} ref={canvasRef} {...rest}
+            onPointerLeave={onPointerLeave}
+            onPointerMove={onPointerMove}
+        />
     </div>
 }
