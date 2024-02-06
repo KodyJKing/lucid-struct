@@ -49,3 +49,8 @@
 .mono {
     font-family: var(--font-mono);
 }
+
+.collapsible {
+    min-height: 0px;
+    min-width: 0px;
+}

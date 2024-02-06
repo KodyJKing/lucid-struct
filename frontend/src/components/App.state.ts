@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { win32 } from "../../wailsjs/go/models"
 import { useLoop } from "../hooks/useLoop"
 import * as Backend from "../../wailsjs/go/main/App"
@@ -7,18 +7,24 @@ const emptyData = new DataView( new ArrayBuffer( 0 ) )
 
 export type AppState = ReturnType<typeof useAppState>
 
+export enum RecordingState {
+    None,
+    Recording,
+    Playing,
+}
+
 export function useAppState() {
     const [ proc, setProc ] = useState<win32.ProcessInfo>()
     const [ size, setSize ] = useState<number>( 1024 )
     const [ addressString, setAddressString ] = useState<string>( "" )
     const address = parseAddress( addressString )
-    const [ data, setData ] = useState<DataView>( emptyData )
+    const [ data, setData ] = useState<DataView>( emptyData ) // Todo: Double buffer this. Don't construct a new array buffer every time.
 
     const videoRef = useRef<HTMLVideoElement>( null )
     const [ stream, _setStream ] = useState<MediaStream | null>( null )
     const recordStartTime = useRef( 0 )
     const mediaRecorder = useRef<MediaRecorder | null>( null )
-    const [ isRecording, setIsRecording ] = useState( false )
+    const [ recordingState, setIsRecordingState ] = useState<RecordingState>( RecordingState.None )
     const chunks: Blob[] = useRef( [] ).current
     const recordingUrl = useRef( "" )
 
@@ -42,7 +48,7 @@ export function useAppState() {
         if ( !stream )
             return
         let recorder = mediaRecorder.current = new MediaRecorder( stream )
-        setIsRecording( true )
+        setIsRecordingState( RecordingState.Recording )
         recorder.onstart = () => {
             chunks.length = 0
         }
@@ -55,14 +61,14 @@ export function useAppState() {
         recorder.start()
 
         if ( !proc || !proc.pid ) return
-        Backend.StartRecording( proc.pid, addressString, size, 100 )
+        Backend.StartRecording( proc.pid, addressString, size, 50 )
     }
     function stopRecordStream() {
         if ( !mediaRecorder.current )
             return
         mediaRecorder.current.stop()
         mediaRecorder.current = null
-        setIsRecording( false )
+        setIsRecordingState( RecordingState.Playing )
 
         Backend.StopRecording()
     }
@@ -78,6 +84,10 @@ export function useAppState() {
         video.src = url
         video.onloadedmetadata = () => video.play()
 
+        syncDataWithVideo( video )
+    }
+
+    function syncDataWithVideo( video: HTMLVideoElement ) {
         video.ontimeupdate = () => {
             const time = Math.floor( video.currentTime * 1000 + recordStartTime.current )
             Backend.GetRecordingFrame( time ).then( ( dataBase64 ) => {
@@ -89,13 +99,25 @@ export function useAppState() {
         }
     }
 
+    function clearRecording() {
+        if ( recordingUrl.current ) URL.revokeObjectURL( recordingUrl.current )
+        recordingUrl.current = ""
+        const video = videoRef.current
+        if ( !video )
+            return
+        video.srcObject = null
+        video.src = ""
+        video.onloadedmetadata = null
+
+        setIsRecordingState( RecordingState.None )
+    }
+
     // Poll memory if we're not recording or playing back.
     useLoop( 100, () => {
-        const video = videoRef.current
-        const isPlaying = video && !!video.src // This check might not be robust.
+        const isPlaying = recordingState == RecordingState.Playing
         if ( isPlaying )
             return
-        if ( !proc || !proc.pid || isRecording ) {
+        if ( !proc || !proc.pid || recordingState == RecordingState.Recording ) {
             if ( data !== emptyData )
                 setData( emptyData )
             return
@@ -107,6 +129,27 @@ export function useAppState() {
                 setData( emptyData )
         } )
     } )
+
+    // Extra video controls
+    useEffect( () => {
+        const video = videoRef.current
+        if ( !video )
+            return
+        const step = ( delta: number ) => {
+            video.pause()
+            video.currentTime += delta
+        }
+        function onKeyPress( e: KeyboardEvent ) {
+            if ( e.key == "." )
+                step( 1 / 25 )
+            if ( e.key == "," )
+                step( -1 / 25 )
+        }
+        window.addEventListener( "keypress", onKeyPress )
+        return () => {
+            window.removeEventListener( "keypress", onKeyPress )
+        }
+    }, [ videoRef.current ] )
 
     return {
         proc,
@@ -123,7 +166,8 @@ export function useAppState() {
         pickScreen,
         recordStream,
         stopRecordStream,
-        isRecording,
+        clearRecording,
+        recordingState,
         recordingUrl,
     }
 
