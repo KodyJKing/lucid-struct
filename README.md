@@ -2,7 +2,7 @@
 
 ## About
 
-A video and memory recorder for reverse engineering. Open a process, point it at a region of memory and pick a window to record, then watch or sweep through the video and see where memory changes.
+A video and memory recorder for reverse engineering structs and classes in games. Open a process, point it at a region of memory and pick a window to record, then watch or sweep through the video and see where memory changes.
 
 ![Screenshot](/screenshot.png)
 
